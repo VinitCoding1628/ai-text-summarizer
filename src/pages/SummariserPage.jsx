@@ -1,7 +1,7 @@
 import { React, useState, useEffect, useRef } from 'react'
 import { GoogleGenAI } from "@google/genai";
 import { Textarea } from '@/components/ui/textarea';
-import { CheckIcon, ClipboardIcon, SparkleIcon, SparklesIcon, TrashIcon } from 'lucide-react';
+import { BoltIcon, CheckIcon, ClipboardIcon, KeyIcon, SparkleIcon, SparklesIcon, TrashIcon, Zap } from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Spinner } from '@/components/ui/spinner';
 import { Field, FieldDescription, FieldError } from '@/components/ui/field';
@@ -9,6 +9,7 @@ import { Toaster, toast } from 'sonner';
 import { Blocks } from "loading-dev";
 import { Separator } from '@/components/ui/separator';
 import Footer from '@/components/Footer';
+import { Progress } from '@/components/ui/progress';
 
 const SummariserPage = () => {
   const [text, setText] = useState('');
@@ -16,7 +17,19 @@ const SummariserPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [apiUsage, setApiUsage] = useState(1);
   const summarizingRef = useRef(false);
+
+  // Function to get API usage
+  useEffect(() => {
+    const apiUsageCount = localStorage.getItem('apiUsage');
+    if (!apiUsageCount) {
+      localStorage.setItem('apiUsage', 0);
+      setApiUsage(0);
+    } else {
+      setApiUsage(parseInt(apiUsageCount));
+    }
+  }, []);
 
   // Function to count words
   const countWords = (str) => {
@@ -59,6 +72,15 @@ const SummariserPage = () => {
     setError(null);
     setSummary('');
 
+    // Check if API usage limit is reached
+    const apiUsageCount = localStorage.getItem('apiUsage')
+    if (apiUsageCount >= 5) {
+      toast.error('API usage limit reached', {
+        description: 'Please provide your API key to continue using the summarizer.',
+      });
+      return;
+    }
+
     try {
       // Importing the Google Gemini
       const ai = new GoogleGenAI({
@@ -74,8 +96,6 @@ const SummariserPage = () => {
       })
       const data = response.steps[1].content[0].text;
       setSummary(data);
-
-      console.log('Summarization response:', response.steps[1].content[0].text);
     } catch (error) {
       toast.error('Summarization failed', {
         description: error.message || 'Summarization failed. Please try again later.',
@@ -83,12 +103,16 @@ const SummariserPage = () => {
     } finally {
       timeoutID = setTimeout(() => {
         setLoading(false);
+        const newApiUsageCount = parseInt(apiUsageCount) + 1;
+        localStorage.setItem('apiUsage', newApiUsageCount);
+        setApiUsage(newApiUsageCount)
       }, 1500);
       summarizingRef.current = false;
     }
 
-    return () => {clearTimeout(timeoutID);}
+    return () => { clearTimeout(timeoutID); }
   }
+
 
   // Function to copy summary to clipboard
   const copyToClipboard = async () => {
@@ -97,6 +121,7 @@ const SummariserPage = () => {
       setCopied(true);
       const timeoutId = setTimeout(() => setCopied(false), 2000);
       return () => { clearTimeout(timeoutId); }
+
 
     } catch (error) {
       toast.error('Failed to copy summary', {
@@ -173,7 +198,7 @@ const SummariserPage = () => {
           {/* Action Buttons */}
           <div className='flex justify-end'>
             {
-              <Button variant='primary' disabled={loading} className='flex items-center gap-2 px-4 py-5 bg-primary text-white hover:bg-primary/80 transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed' onClick={summarizeText}>
+              <Button variant='primary' disabled={loading || apiUsage >=5 || countWords(text) < 50} className='flex items-center gap-2 px-4 py-5 bg-primary text-white hover:bg-primary/80 transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed' onClick={summarizeText}>
                 {
                   loading ? (
                     <>
@@ -194,7 +219,7 @@ const SummariserPage = () => {
         </div>
 
         {/* Separator */}
-        <Separator className='lg:hidden md:block sm:block block'/>
+        <Separator className='lg:hidden md:block sm:block block' />
 
         {/* Output Area */}
         <div className='bg-card p-3 rounded-lg my-2 flex flex-col gap-4 w-full me-3'>
@@ -226,7 +251,7 @@ const SummariserPage = () => {
                 <p className='h-full'>{summary}</p>
               )
             }
-            
+
             {/* Ideal State of the summary area */}
             {
               summary.length === 0 && !loading && (
@@ -242,11 +267,36 @@ const SummariserPage = () => {
             {
               loading && (
                 <div className='flex flex-col items-center justify-center gap-2 h-full'>
-                  <Blocks size={40} className='text-muted-foreground'/>
+                  <Blocks size={40} className='text-muted-foreground' />
                   <span className='text-sm text-muted-foreground animate-cell-ripple'>Generating your summary...</span>
                 </div>
               )
             }
+          </div>
+
+          {/* API Usage */}
+          <div className='flex gap-3 items-center bg-primary/10 p-3 rounded-lg'>
+            <Zap className='text-primary' size={30} />
+
+            <div className='w-full flex flex-col gap-3'>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <h2>API Usage</h2>
+                  <p className='text-sm text-gray-500'>You can use the summarizer 5 times for free.</p>
+                </div>
+                <Button className='bg-primary text-white'>
+                  <KeyIcon /> <span>Get API Key</span>
+                </Button>
+              </div>
+              <div>
+                <Progress value={(apiUsage / 5) * 100} className='h-2' />
+                <p className='text-sm text-gray-500'> Free Usage Used: <span className='font-semibold'>{apiUsage}/5</span></p>
+              </div>
+            </div>
+
+            {/* <Button>
+              <KeyIcon /> <span>Get API Key</span>
+            </Button> */}
           </div>
         </div>
       </div>
