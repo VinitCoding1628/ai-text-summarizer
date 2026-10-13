@@ -4,9 +4,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckIcon, ClipboardIcon, SparkleIcon, SparklesIcon, TrashIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Spinner } from '@/components/ui/spinner';
-import { Field, FieldLabel, FieldDescription, FieldError } from '@/components/ui/field';
+import { Field, FieldDescription, FieldError } from '@/components/ui/field';
 import { Toaster, toast } from 'sonner';
+import { Blocks } from "loading-dev";
 import { Separator } from '@/components/ui/separator';
+import Footer from '@/components/Footer';
 
 const SummariserPage = () => {
   const [text, setText] = useState('');
@@ -41,6 +43,7 @@ const SummariserPage = () => {
 
   // Summarize text function
   const summarizeText = async () => {
+    let timeoutID;
     if (summarizingRef.current || loading) return;
     if (!text.trim()) {
       setError('Please enter some text to summarize.');
@@ -52,7 +55,7 @@ const SummariserPage = () => {
       return;
     }
     summarizingRef.current = true;
-    setLoading(true);
+    timeoutID = setLoading(true);
     setError(null);
     setSummary('');
 
@@ -78,9 +81,13 @@ const SummariserPage = () => {
         description: error.message || 'Summarization failed. Please try again later.',
       });
     } finally {
-      setLoading(false);
+      timeoutID = setTimeout(() => {
+        setLoading(false);
+      }, 1500);
       summarizingRef.current = false;
     }
+
+    return () => {clearTimeout(timeoutID);}
   }
 
   // Function to copy summary to clipboard
@@ -107,16 +114,16 @@ const SummariserPage = () => {
   }
 
   return (
-    <div className='bg-linear-to-r from-bg-light-blue to-bg-light-violet py-4 flex flex-col justify-start gap-4 w-full overflow-y-auto'>
+    <div className='bg-linear-to-r from-bg-light-blue to-bg-light-violet pt-8 flex flex-col justify-start gap-6 w-full overflow-y-auto'>
       <Toaster />
       {/* Title */}
-      <div className='flex flex-col items-center justify-center gap-2'>
+      <div className='flex flex-col items-center justify-center gap-3'>
         <h2 className='text-4xl font-bold'> Turn Long Text into <span className='italic text-primary'>Clear Summaries</span></h2>
         <p className='text-muted-foreground'>Paste your text and get a concise, easy-to-read summary using Google Gemini</p>
       </div>
 
       {/* Main Container */}
-      <div className='bg-card p-3 rounded-lg shadow flex justify-center gap-5 items-start mx-8'>
+      <div className='bg-card p-3 mb-4 rounded-lg shadow flex lg:flex-row md:flex-col sm:flex-col flex-col justify-center gap-5 items-start lg:mx-8 md:mx-4 sm:mx-2 mx-2.5'>
         {/* Input Area */}
         <div className='p-3 rounded-lg my-2 flex flex-col gap-4 w-full'>
           {/* Text with words count */}
@@ -151,7 +158,7 @@ const SummariserPage = () => {
               aria-describedby={error ? "summariser-input-error" : undefined}
             />
 
-            <div className="flex justify-between items-center my-2">
+            <div className="flex justify-between items-center my-3">
               {error ? (
                 <FieldError className='text-sm text-red-500'>{error}</FieldError>
               ) : (
@@ -185,6 +192,9 @@ const SummariserPage = () => {
             }
           </div>
         </div>
+
+        {/* Separator */}
+        <Separator className='lg:hidden md:block sm:block block'/>
 
         {/* Output Area */}
         <div className='bg-card p-3 rounded-lg my-2 flex flex-col gap-4 w-full me-3'>
@@ -231,14 +241,18 @@ const SummariserPage = () => {
             {/* Loading State */}
             {
               loading && (
-                <div>
-
+                <div className='flex flex-col items-center justify-center gap-2 h-full'>
+                  <Blocks size={40} className='text-muted-foreground'/>
+                  <span className='text-sm text-muted-foreground animate-cell-ripple'>Generating your summary...</span>
                 </div>
               )
             }
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
   )
 }
