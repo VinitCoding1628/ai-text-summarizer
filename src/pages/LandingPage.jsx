@@ -6,6 +6,7 @@ import { ShimmerButton } from '@/components/ui/shimmer-button.jsx';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { Zap, Copy, List, KeyRound, ShieldCheck } from 'lucide-react'
+import Footer from '@/components/Footer.jsx';
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -55,7 +56,7 @@ const LandingPage = () => {
             </section>
 
             {/* Feature Section */}
-            <section className="bg-feature rounded-lg p-4 md:p-8 mb-6">
+            <section className="bg-feature rounded-lg p-4 md:p-8">
                 <div className="mb-8 flex max-w-3xl flex-col gap-4">
                     <p className="jetbrains-mono w-fit text-lg text-primary">FEATURES</p>
                     <h2 className="text-3xl font-semibold">Simple, Accurate Summaries in Seconds</h2>
@@ -153,6 +154,9 @@ const LandingPage = () => {
                     </article>
                 </div>
             </section>
+
+            {/* Footer */}
+            <Footer />
         </div>
     )
 }
