@@ -3,11 +3,16 @@ import logo from '../assets/images/icon.svg'
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useNavigate } from 'react-router-dom'
 const Navbar = () => {
+    const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
+    const handleLogoClick = () => {
+        navigate('/')
+    }
     return (
-        <nav className='sticky top-0 z-50 flex justify-between items-center w-full gap-3 border-b-[0.1px] border-b-muted-foreground backdrop-blur-lg p-4'>
-            <div className="flex items-center gap-3">
+        <nav className='sticky top-0 z-50 flex justify-between items-center w-full gap-2 border-b-[0.1px] border-b-muted-foreground backdrop-blur-lg p-4'>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={handleLogoClick}>
                 <img src={logo} alt="logo" />
                 <h2 className="text-2xl font-semibold">Summarizo</h2>
             </div>

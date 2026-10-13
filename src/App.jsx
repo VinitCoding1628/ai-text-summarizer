@@ -9,7 +9,7 @@ import Footer from './components/Footer';
 const App = () => {
   
   return (
-    <div className='lg:mx-10 md:mx-2 py-3 sm:mx-0 mx-0'>
+    <div className=''>
       <Navbar />
       <Routes>
         <Route path='/' element={<LandingPage />} />

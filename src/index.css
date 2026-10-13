@@ -48,7 +48,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-
+  --color-bg-light-blue: var(--bg-light-blue);
+  --color-bg-light-violet: var(--bg-light-violet);
   --animate-cell-ripple: cell-ripple var(--duration, 200ms) ease-out none 1 var(--delay, 0ms);
 
   @keyframes cell-ripple {
@@ -67,20 +68,34 @@
 
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
 
-  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear
-;
+  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+
   @keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);}}
+    to {
+      transform: translate(calc(100cqw - 100%), 0);
+    }
+  }
+
   @keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);}
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);}
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);}
-  100% {
-    transform: translateZ(0) rotate(360deg);}}}
+    0% {
+      transform: translateZ(0) rotate(0);
+    }
+
+    15%,
+    35% {
+      transform: translateZ(0) rotate(90deg);
+    }
+
+    65%,
+    85% {
+      transform: translateZ(0) rotate(270deg);
+    }
+
+    100% {
+      transform: translateZ(0) rotate(360deg);
+    }
+  }
+}
 
 :root {
   --background: oklch(1 0 0);
@@ -116,13 +131,16 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
   --shadow-primary: #2525a257;
-  --feature: #EFF4FF
+  --feature: #EFF4FF;
+  --bg-light-blue: #EFF6FF;
+  --bg-light-violet: #F5F3FF;
+
 }
 
 .dark {
   --background: #111827;
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: #18243b;
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
@@ -153,6 +171,8 @@
   --sidebar-ring: oklch(0.556 0 0);
   --shadow-primary: #6366F1;
   --feature: #18243b;
+  --bg-light-blue: #182e4b7f;
+  --bg-light-violet: #221a4c7f;
 }
 
 @layer base {

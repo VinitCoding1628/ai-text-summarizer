@@ -7,13 +7,23 @@ import { ThemeProvider } from '@/hooks/useTheme'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <TooltipProvider>
-      <ThemeProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </ThemeProvider>
-    </TooltipProvider>
-  </StrictMode>,
+  // Prod Mode
+  <TooltipProvider>
+    <ThemeProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ThemeProvider>
+  </TooltipProvider>,
+
+  // Dev Mode
+  // <StrictMode>
+  //   <TooltipProvider>
+  //     <ThemeProvider>
+  //       <BrowserRouter>
+  //         <App />
+  //       </BrowserRouter>
+  //     </ThemeProvider>
+  //   </TooltipProvider>
+  // </StrictMode>,
 )
