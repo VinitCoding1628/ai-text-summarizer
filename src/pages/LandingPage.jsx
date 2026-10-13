@@ -17,7 +17,7 @@ const LandingPage = () => {
     return (
         <div>
             {/* Hero Section */}
-            <section className="relative flex min-h-[calc(100vh-14.5rem)] items-center justify-center overflow-hidden">
+            <section className="relative flex min-h-[calc(100vh-14.5rem)] items-center justify-center overflow-hidden scroll-smooth">
                 <div className="absolute inset-0">
                     <PatternWaves
                         preset="silk"

@@ -1,5 +1,12 @@
-import { React, useState, useEffect } from 'react'
+import { React, useState, useEffect, useRef } from 'react'
 import { GoogleGenAI } from "@google/genai";
+import { Textarea } from '@/components/ui/textarea';
+import { CheckIcon, ClipboardIcon, SparkleIcon, SparklesIcon, TrashIcon } from 'lucide-react';
+import { Button } from "@/components/ui/button"
+import { Spinner } from '@/components/ui/spinner';
+import { Field, FieldLabel, FieldDescription, FieldError } from '@/components/ui/field';
+import { Toaster, toast } from 'sonner';
+import { Separator } from '@/components/ui/separator';
 
 const SummariserPage = () => {
   const [text, setText] = useState('');
@@ -7,6 +14,7 @@ const SummariserPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const summarizingRef = useRef(false);
 
   // Function to count words
   const countWords = (str) => {
@@ -25,13 +33,15 @@ const SummariserPage = () => {
       setText(clipboardText);
     }
     catch (error) {
-      console.error('Failed to paste', error);
-      setError('Failed to paste from clipboard. Please use Ctrl+V to paste. ')
+      toast.error('Failed to paste', {
+        description: 'Please use Ctrl+V to paste.',
+      });
     }
   }
 
   // Summarize text function
   const summarizeText = async () => {
+    if (summarizingRef.current || loading) return;
     if (!text.trim()) {
       setError('Please enter some text to summarize.');
       return;
@@ -41,7 +51,7 @@ const SummariserPage = () => {
       setError('Please enter at least 50 characters to summarize.');
       return;
     }
-
+    summarizingRef.current = true;
     setLoading(true);
     setError(null);
     setSummary('');
@@ -53,8 +63,8 @@ const SummariserPage = () => {
       });
 
       const response = await ai.interactions.create({
-        model: 'gemini-3.5-flash',
-        input: 'Please provide a concise one-sentence summary of the following text:\n\n' + text,
+        model: 'gemini-3.5-flash-lite',
+        input: 'Please provide a concise paragraph summary of the following text:\n\n' + text,
         generation_config: {
           thinking_level: "low",
         },
@@ -64,10 +74,12 @@ const SummariserPage = () => {
 
       console.log('Summarization response:', response.steps[1].content[0].text);
     } catch (error) {
-      console.error('Summarization failed', error);
-      setError(error.message || 'Summarization failed. Please try again later.')
+      toast.error('Summarization failed', {
+        description: error.message || 'Summarization failed. Please try again later.',
+      });
     } finally {
       setLoading(false);
+      summarizingRef.current = false;
     }
   }
 
@@ -80,8 +92,9 @@ const SummariserPage = () => {
       return () => { clearTimeout(timeoutId); }
 
     } catch (error) {
-      console.error('Failed to copy summary', error);
-      setError('Failed to copy to clipboard. Please try again later.')
+      toast.error('Failed to copy summary', {
+        description: error.message || 'Failed to copy to clipboard. Please try again later.',
+      });
     }
   }
 
@@ -92,9 +105,141 @@ const SummariserPage = () => {
     setError(null);
     setCopied(false)
   }
-  
+
   return (
-    <div>SummariserPage</div>
+    <div className='bg-linear-to-r from-bg-light-blue to-bg-light-violet py-4 flex flex-col justify-start gap-4 w-full overflow-y-auto'>
+      <Toaster />
+      {/* Title */}
+      <div className='flex flex-col items-center justify-center gap-2'>
+        <h2 className='text-4xl font-bold'> Turn Long Text into <span className='italic text-primary'>Clear Summaries</span></h2>
+        <p className='text-muted-foreground'>Paste your text and get a concise, easy-to-read summary using Google Gemini</p>
+      </div>
+
+      {/* Main Container */}
+      <div className='bg-card p-3 rounded-lg shadow flex justify-center gap-5 items-start mx-8'>
+        {/* Input Area */}
+        <div className='p-3 rounded-lg my-2 flex flex-col gap-4 w-full'>
+          {/* Text with words count */}
+          <div className='flex justify-between items-center'>
+            <h3 className='text-xl font-semibold'>Input Text</h3>
+
+            <div className='flex items-center gap-2'>
+              <Button variant='outline' className='flex items-center justify-center gap-2' onClick={pasteText} disabled={loading}>
+                <ClipboardIcon className='w-4 h-4' />
+                <span>Paste Text</span>
+              </Button>
+              <Button variant='outline' className='flex items-center justify-center gap-2' onClick={clearAll} disabled={loading || !text.trim()}>
+                <TrashIcon className='w-4 h-4' />
+                <span>Clear</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Textarea  */}
+          <Field data-invalid={!!error} className='flex justify-between items-center'>
+            <Textarea
+              id="summariser-input"
+              placeholder="Enter or paste your content here..."
+              className="h-[35dvh] resize-none"
+              value={text}
+              disabled={loading}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (error) setError(null); // clear invalid state while typing
+              }}
+              aria-invalid={!!error}
+              aria-describedby={error ? "summariser-input-error" : undefined}
+            />
+
+            <div className="flex justify-between items-center my-2">
+              {error ? (
+                <FieldError className='text-sm text-red-500'>{error}</FieldError>
+              ) : (
+                <FieldDescription>Minimum 50 characters required.</FieldDescription>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {countWords(text)} words | {countSentences(text)} sentences
+              </p>
+            </div>
+          </Field>
+
+          {/* Action Buttons */}
+          <div className='flex justify-end'>
+            {
+              <Button variant='primary' disabled={loading} className='flex items-center gap-2 px-4 py-5 bg-primary text-white hover:bg-primary/80 transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed' onClick={summarizeText}>
+                {
+                  loading ? (
+                    <>
+                      <Spinner />
+                      <span>Summarizing...</span>
+
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon />
+                      <span>Summarize</span>
+                    </>
+                  )
+                }
+              </Button>
+            }
+          </div>
+        </div>
+
+        {/* Output Area */}
+        <div className='bg-card p-3 rounded-lg my-2 flex flex-col gap-4 w-full me-3'>
+          {/* Title */}
+          <div className='flex justify-between items-center'>
+            <h3 className='text-lg font-semibold'>Summary</h3>
+            <Button variant='outline' className='flex items-center justify-center gap-2 text-sm' onClick={copyToClipboard} disabled={loading}>
+              {
+                copied ? (
+                  <>
+                    <CheckIcon />
+                    <span className='text-sm'>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <ClipboardIcon />
+                    <span className='text-sm'>Copy to Clipboard</span>
+                  </>
+                )
+              }
+            </Button>
+          </div>
+
+          {/* Summary Area*/}
+          <div className='text-sm text-muted-foreground p-4 rounded-lg bg-foreground/5 h-[35dvh]'>
+            {/* Summary Text */}
+            {
+              summary.length > 0 && !loading && (
+                <p className='h-full'>{summary}</p>
+              )
+            }
+            
+            {/* Ideal State of the summary area */}
+            {
+              summary.length === 0 && !loading && (
+                <div className='flex flex-col items-center justify-center gap-2 h-full'>
+                  <span className='p-4 bg-purple-200/70 rounded-full animate-bounce transition-colors duration-300 ease-in-out text-gray-600'><SparklesIcon /></span>
+                  <h3 className='text-lg font-semibold'>Enter some text to get a summary of your text</h3>
+                  <p className='text-sm text-muted-foreground'>The summary will be displayed here</p>
+                </div>
+              )
+            }
+
+            {/* Loading State */}
+            {
+              loading && (
+                <div>
+
+                </div>
+              )
+            }
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
