@@ -28,7 +28,15 @@ const SummariserPage = () => {
   const [testingApiKey, setTestingApiKey] = useState(false);
   const summarizingRef = useRef(false);
 
-  const hasApiKeyInput = apiKey.trim().length > 0;
+  const trimmedApiKey = apiKey.trim();
+  const hasApiKeyInput = trimmedApiKey.length > 0;
+  const storedValidatedKey = localStorage.getItem('userApiKey') ?? '';
+  const isStoredKeyTested = localStorage.getItem('apiKeyTested') === 'true';
+  const isCurrentKeyAlreadyTested =
+    hasApiKeyInput
+    && isStoredKeyTested
+    && trimmedApiKey === storedValidatedKey.trim();
+  const canTestApiKey = hasApiKeyInput && !isCurrentKeyAlreadyTested && !testingApiKey;
 
   // Function to get API usage
   useEffect(() => {
@@ -205,7 +213,13 @@ const SummariserPage = () => {
       return;
     }
 
-    if (testingApiKey) return;
+    const savedKey = (localStorage.getItem('userApiKey') ?? '').trim();
+    if (
+      testingApiKey
+      || (localStorage.getItem('apiKeyTested') === 'true' && trimmedKey === savedKey)
+    ) {
+      return;
+    }
 
     setTestingApiKey(true);
     try {
@@ -414,6 +428,7 @@ const SummariserPage = () => {
                   <Button
                     type="button"
                     variant='outline'
+                    disabled={loading}
                     className='flex items-center justify-center gap-2 text-sm'
                     onClick={() => openApiKeyDialog(true)}
                   >
@@ -423,6 +438,7 @@ const SummariserPage = () => {
                   <Button
                     type="button"
                     variant='outline'
+                    disabled={loading}
                     className='flex items-center justify-center gap-2 text-sm'
                     onClick={removeStoredApiKey}
                   >
@@ -472,7 +488,12 @@ const SummariserPage = () => {
                       setApiKey(nextKey);
                       setApiKeyTestSucceededInModal(false);
                       const storedKey = localStorage.getItem('userApiKey') ?? '';
-                      if (nextKey.trim() !== storedKey.trim()) {
+                      if (
+                        nextKey.trim() === storedKey.trim()
+                        && localStorage.getItem('apiKeyTested') === 'true'
+                      ) {
+                        setApiKeyValidated(true);
+                      } else if (nextKey.trim() !== storedKey.trim()) {
                         setApiKeyValidated(false);
                         localStorage.setItem('apiKeyTested', 'false');
                       }
@@ -494,7 +515,7 @@ const SummariserPage = () => {
                 <Button
                   type="button"
                   className='w-fit px-4 py-1.5'
-                  disabled={!hasApiKeyInput || testingApiKey}
+                  disabled={!canTestApiKey}
                   onClick={testAPIKey}
                 >
                   {
@@ -503,7 +524,7 @@ const SummariserPage = () => {
                         <Spinner />
                         <span>Testing...</span>
                       </>
-                    ) : apiKeyTestSucceededInModal ? (
+                    ) : isCurrentKeyAlreadyTested || apiKeyTestSucceededInModal ? (
                       <>
                         <Check />
                         <span>Tested</span>
