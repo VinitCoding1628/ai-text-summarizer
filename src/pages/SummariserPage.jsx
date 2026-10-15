@@ -1,14 +1,17 @@
 import { React, useState, useEffect, useRef } from 'react'
 import { GoogleGenAI } from "@google/genai";
 import { Textarea } from '@/components/ui/textarea';
-import { CheckIcon, ClipboardIcon, SparkleIcon, SparklesIcon, TrashIcon } from 'lucide-react';
+import { CheckIcon, ClipboardIcon, EyeIcon, EyeOffIcon, KeyIcon, SparklesIcon, TrashIcon, Zap, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button"
 import { Spinner } from '@/components/ui/spinner';
-import { Field, FieldDescription, FieldError } from '@/components/ui/field';
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
 import { Toaster, toast } from 'sonner';
 import { Blocks } from "loading-dev";
 import { Separator } from '@/components/ui/separator';
 import Footer from '@/components/Footer';
+import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 
 const SummariserPage = () => {
   const [text, setText] = useState('');
@@ -16,7 +19,51 @@ const SummariserPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [apiUsage, setApiUsage] = useState(0);
+  const [seeAPIKey, setSeeAPIKey] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeyValidated, setApiKeyValidated] = useState(false);
+  const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
+  const [apiKeyTestSucceededInModal, setApiKeyTestSucceededInModal] = useState(false);
+  const [testingApiKey, setTestingApiKey] = useState(false);
   const summarizingRef = useRef(false);
+
+  const trimmedApiKey = apiKey.trim();
+  const hasApiKeyInput = trimmedApiKey.length > 0;
+  const storedValidatedKey = localStorage.getItem('userApiKey') ?? '';
+  const isStoredKeyTested = localStorage.getItem('apiKeyTested') === 'true';
+  const isCurrentKeyAlreadyTested =
+    hasApiKeyInput
+    && isStoredKeyTested
+    && trimmedApiKey === storedValidatedKey.trim();
+  const canTestApiKey = hasApiKeyInput && !isCurrentKeyAlreadyTested && !testingApiKey;
+
+  // Function to get API usage
+  useEffect(() => {
+    const apiUsageCount = localStorage.getItem('apiUsage');
+    const storedUserApiKey = localStorage.getItem('userApiKey');
+    const storedKeyTested = localStorage.getItem('apiKeyTested') === 'true';
+
+    if (storedUserApiKey) {
+      setApiKey(storedUserApiKey);
+    }
+    setApiKeyValidated(storedKeyTested && Boolean(storedUserApiKey?.trim()));
+
+    if (!apiUsageCount) {
+      localStorage.setItem('apiUsage', 0);
+      setApiUsage(0);
+    } else {
+      setApiUsage(parseInt(apiUsageCount, 10));
+    }
+  }, []);
+
+  const handleApiKeyDialogOpenChange = (open) => {
+    setApiKeyDialogOpen(open);
+    if (!open) {
+      setApiKeyTestSucceededInModal(false);
+      setSeeAPIKey(false);
+    }
+  };
 
   // Function to count words
   const countWords = (str) => {
@@ -59,11 +106,27 @@ const SummariserPage = () => {
     setError(null);
     setSummary('');
 
-    try {
-      // Importing the Google Gemini
-      const ai = new GoogleGenAI({
-        apiKey: import.meta.env.VITE_GEMINI_API_KEY
+    // Check if API usage limit is reached
+    const apiUsageCount = localStorage.getItem('apiUsage')
+    if (apiUsageCount >= 5) {
+      toast.error('API usage limit reached', {
+        description: 'Please provide your API key to continue using the summarizer.',
       });
+      return;
+    }
+
+    try {
+      let ai;
+      // Importing the Google Gemini
+      if (apiKeyValidated && apiKey.trim().length > 0) {
+        ai = new GoogleGenAI({
+          apiKey: apiKey.trim()
+        });
+      } else {
+        ai = new GoogleGenAI({
+          apiKey: import.meta.env.VITE_GEMINI_API_KEY
+        });
+      }
 
       const response = await ai.interactions.create({
         model: 'gemini-3.5-flash-lite',
@@ -74,8 +137,6 @@ const SummariserPage = () => {
       })
       const data = response.steps[1].content[0].text;
       setSummary(data);
-
-      console.log('Summarization response:', response.steps[1].content[0].text);
     } catch (error) {
       toast.error('Summarization failed', {
         description: error.message || 'Summarization failed. Please try again later.',
@@ -83,12 +144,18 @@ const SummariserPage = () => {
     } finally {
       timeoutID = setTimeout(() => {
         setLoading(false);
+        if (!apiKey.trim() || !apiKeyValidated) {
+          const newApiUsageCount = parseInt(apiUsageCount) + 1;
+          localStorage.setItem('apiUsage', newApiUsageCount);
+          setApiUsage(newApiUsageCount)
+        }
       }, 1500);
       summarizingRef.current = false;
     }
 
-    return () => {clearTimeout(timeoutID);}
+    return () => { clearTimeout(timeoutID); }
   }
+
 
   // Function to copy summary to clipboard
   const copyToClipboard = async () => {
@@ -97,6 +164,7 @@ const SummariserPage = () => {
       setCopied(true);
       const timeoutId = setTimeout(() => setCopied(false), 2000);
       return () => { clearTimeout(timeoutId); }
+
 
     } catch (error) {
       toast.error('Failed to copy summary', {
@@ -111,6 +179,79 @@ const SummariserPage = () => {
     setSummary('');
     setError(null);
     setCopied(false)
+  }
+
+  const toggleAPIKeyVisibility = () => {
+    setSeeAPIKey(!seeAPIKey);
+  }
+
+  const openApiKeyDialog = (revealKey = false) => {
+    const storedKey = localStorage.getItem('userApiKey') ?? apiKey;
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+    setSeeAPIKey(revealKey);
+    setApiKeyDialogOpen(true);
+  }
+
+  const removeStoredApiKey = () => {
+    setApiKey('');
+    setApiKeyValidated(false);
+    setApiKeyTestSucceededInModal(false);
+    setSeeAPIKey(false);
+    localStorage.setItem('apiKeyTested', 'false');
+    localStorage.removeItem('userApiKey');
+  }
+
+  // Function to test API key
+  const testAPIKey = async () => {
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey) {
+      toast.error('API key required', {
+        description: 'Enter your Google Gemini API key before testing.',
+      });
+      return;
+    }
+
+    const savedKey = (localStorage.getItem('userApiKey') ?? '').trim();
+    if (
+      testingApiKey
+      || (localStorage.getItem('apiKeyTested') === 'true' && trimmedKey === savedKey)
+    ) {
+      return;
+    }
+
+    setTestingApiKey(true);
+    try {
+      const ai = new GoogleGenAI({
+        apiKey: trimmedKey
+      });
+
+      const response = await ai.interactions.create({
+        model: 'gemini-3.5-flash-lite',
+        input: 'Introduce yourself',
+        generation_config: {
+          thinking_level: "low",
+        },
+      })
+      toast.success('API key tested successfully', {
+        description: 'You can now use the key for summarizo.',
+      });
+      setApiKeyValidated(true);
+      setApiKeyTestSucceededInModal(true);
+      localStorage.setItem('apiKeyTested', 'true');
+      localStorage.setItem('userApiKey', trimmedKey);
+    } catch (error) {
+      toast.error('Failed to test API key', {
+        description: error.message || 'Failed to test API key. Please try again later.',
+      });
+      setApiKeyValidated(false);
+      setApiKeyTestSucceededInModal(false);
+      localStorage.setItem('apiKeyTested', 'false');
+      localStorage.removeItem('userApiKey');
+    } finally {
+      setTestingApiKey(false);
+    }
   }
 
   return (
@@ -173,7 +314,7 @@ const SummariserPage = () => {
           {/* Action Buttons */}
           <div className='flex justify-end'>
             {
-              <Button variant='primary' disabled={loading} className='flex items-center gap-2 px-4 py-5 bg-primary text-white hover:bg-primary/80 transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed' onClick={summarizeText}>
+              <Button variant='primary' disabled={loading || apiUsage >= 5 || countWords(text) < 50} className='flex items-center gap-2 px-4 py-5 bg-primary text-white hover:bg-primary/80 transition-all duration-200 ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed' onClick={summarizeText}>
                 {
                   loading ? (
                     <>
@@ -194,7 +335,7 @@ const SummariserPage = () => {
         </div>
 
         {/* Separator */}
-        <Separator className='lg:hidden md:block sm:block block'/>
+        <Separator className='lg:hidden md:block sm:block block' />
 
         {/* Output Area */}
         <div className='bg-card p-3 rounded-lg my-2 flex flex-col gap-4 w-full me-3'>
@@ -219,14 +360,14 @@ const SummariserPage = () => {
           </div>
 
           {/* Summary Area*/}
-          <div className='text-sm text-muted-foreground p-4 rounded-lg bg-foreground/5 h-[35dvh]'>
+          <div className='text-sm text-muted-foreground p-4 rounded-lg bg-foreground/5 ' style={{ height: apiKeyValidated ? '35dvh' : '35dvh' }}>
             {/* Summary Text */}
             {
               summary.length > 0 && !loading && (
                 <p className='h-full'>{summary}</p>
               )
             }
-            
+
             {/* Ideal State of the summary area */}
             {
               summary.length === 0 && !loading && (
@@ -242,12 +383,163 @@ const SummariserPage = () => {
             {
               loading && (
                 <div className='flex flex-col items-center justify-center gap-2 h-full'>
-                  <Blocks size={40} className='text-muted-foreground'/>
+                  <Blocks size={40} className='text-muted-foreground' />
                   <span className='text-sm text-muted-foreground animate-cell-ripple'>Generating your summary...</span>
                 </div>
               )
             }
           </div>
+
+          {/* API Usage */}
+          {
+            !apiKeyValidated ? (
+              <div className='flex gap-3 items-center bg-primary/10 p-3 rounded-lg'>
+                <Zap className='text-primary' size={30} />
+
+                <div className='w-full flex flex-col gap-3'>
+                  <div className='flex items-center justify-between'>
+                    <div>
+                      <h2>API Usage</h2>
+                      <p className='text-sm text-gray-500'>You can use the summarizer 5 times for free.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      className='bg-primary text-white hover:cursor-pointer'
+                      disabled={loading}
+                      onClick={() => openApiKeyDialog(false)}
+                    >
+                      <KeyIcon /> <span>Get API Key</span>
+                    </Button>
+                  </div>
+                  <div>
+                    <Progress value={(apiUsage / 5) * 100} className='h-2' />
+                    <p className='text-sm text-gray-500'> Free Usage Used: <span className='font-semibold'>{apiUsage}/5</span></p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className='bg-primary/6 p-3 flex justify-between items-center gap-2 rounded-md'>
+                <CheckIcon className='text-green-500 shrink-0' size={30} />
+                <div className='min-w-0 flex-1'>
+                  <h3 className='text-lg font-semibold'>API key tested successfully</h3>
+                  <p className='text-sm text-muted-foreground'>You can now use the key for summarizo.</p>
+                </div>
+                <div className='flex shrink-0 items-center gap-2'>
+                  <Button
+                    type="button"
+                    variant='outline'
+                    disabled={loading}
+                    className='flex items-center justify-center gap-2 text-sm'
+                    onClick={() => openApiKeyDialog(true)}
+                  >
+                    <EyeIcon className='w-4 h-4' />
+                    <span>View API Key</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant='outline'
+                    disabled={loading}
+                    className='flex items-center justify-center gap-2 text-sm'
+                    onClick={removeStoredApiKey}
+                  >
+                    <TrashIcon className='w-4 h-4' />
+                    <span>Remove</span>
+                  </Button>
+                </div>
+              </div>
+            )
+          }
+
+          <Dialog open={apiKeyDialogOpen} onOpenChange={handleApiKeyDialogOpenChange}>
+            <DialogContent className="w-[90dvw] bg-card">
+              <DialogHeader>
+                <DialogTitle>Add Google Gemini API Key</DialogTitle>
+                <DialogDescription>
+                  Enter your own Google Gemini API key to continue using Summarizo.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-1 rounded-lg bg-primary/10 p-3 flex flex-col gap-1">
+                <p className="text-base font-semibold text-muted-foreground">
+                  Don&apos;t have an API key?
+                </p>
+                <div className="flex items-center justify-start gap-1 text-sm text-muted-foreground">
+                  <span className="min-w-0">Get your free API key from</span>
+                  <a
+                    href="https://share.google/qUwreQw7CMZzhfcVE"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-primary hover:underline"
+                  >
+                    Google AI Studio
+                  </a>
+                </div>
+              </div>
+              <Separator className='my-2' />
+              <Field className="max-w-sm">
+                <FieldLabel htmlFor="inline-end-input">API Key</FieldLabel>
+                <InputGroup>
+                  <InputGroupInput
+                    id="inline-end-input"
+                    type={seeAPIKey ? 'text' : 'password'}
+                    placeholder="AIza..."
+                    value={apiKey}
+                    onChange={(e) => {
+                      const nextKey = e.target.value;
+                      setApiKey(nextKey);
+                      setApiKeyTestSucceededInModal(false);
+                      const storedKey = localStorage.getItem('userApiKey') ?? '';
+                      if (
+                        nextKey.trim() === storedKey.trim()
+                        && localStorage.getItem('apiKeyTested') === 'true'
+                      ) {
+                        setApiKeyValidated(true);
+                      } else if (nextKey.trim() !== storedKey.trim()) {
+                        setApiKeyValidated(false);
+                        localStorage.setItem('apiKeyTested', 'false');
+                      }
+                    }}
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <button
+                      type="button"
+                      onClick={toggleAPIKeyVisibility}
+                      className='cursor-pointer text-muted-foreground hover:text-foreground'
+                      aria-label={seeAPIKey ? 'Hide API key' : 'Show API key'}
+                    >
+                      {seeAPIKey ? <EyeOffIcon className='w-4 h-4' /> : <EyeIcon className='w-4 h-4' />}
+                    </button>
+                  </InputGroupAddon>
+                </InputGroup>
+              </Field>
+              <div className='flex justify-end'>
+                <Button
+                  type="button"
+                  className='w-fit px-4 py-1.5'
+                  disabled={!canTestApiKey}
+                  onClick={testAPIKey}
+                >
+                  {
+                    testingApiKey ? (
+                      <>
+                        <Spinner />
+                        <span>Testing...</span>
+                      </>
+                    ) : isCurrentKeyAlreadyTested || apiKeyTestSucceededInModal ? (
+                      <>
+                        <Check />
+                        <span>Tested</span>
+                      </>
+                    ) : (
+                      <>
+                        <KeyIcon />
+                        <span>Test API Key</span>
+                      </>
+                    )
+                  }
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
