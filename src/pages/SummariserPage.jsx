@@ -258,9 +258,9 @@ const SummariserPage = () => {
     <div className='bg-linear-to-r from-bg-light-blue to-bg-light-violet pt-8 flex flex-col justify-start gap-6 w-full overflow-y-auto'>
       <Toaster />
       {/* Title */}
-      <div className='flex flex-col items-center justify-center gap-3'>
-        <h2 className='text-4xl font-bold'> Turn Long Text into <span className='italic text-primary'>Clear Summaries</span></h2>
-        <p className='text-muted-foreground'>Paste your text and get a concise, easy-to-read summary using Google Gemini</p>
+      <div className='flex flex-col items-center justify-center gap-3 mx-3'>
+        <h2 className='text-4xl font-bold text-center'> Turn Long Text into <span className='italic text-primary'>Clear Summaries</span></h2>
+        <p className='text-muted-foreground text-center'>Paste your text and get a concise, easy-to-read summary using Google Gemini</p>
       </div>
 
       {/* Main Container */}
@@ -418,13 +418,13 @@ const SummariserPage = () => {
                 </div>
               </div>
             ) : (
-              <div className='bg-primary/6 p-3 flex justify-between items-center gap-2 rounded-md'>
+              <div className='bg-primary/6 p-3 flex flex-col sm:flex-col md:flex-row lg:flex-col xl:flex-row justify-between items-center gap-2 rounded-md'>
                 <CheckIcon className='text-green-500 shrink-0' size={30} />
                 <div className='min-w-0 flex-1'>
                   <h3 className='text-lg font-semibold'>API key tested successfully</h3>
                   <p className='text-sm text-muted-foreground'>You can now use the key for summarizo.</p>
                 </div>
-                <div className='flex shrink-0 items-center gap-2'>
+                <div className='flex sm:flex-col md:flex-row lg:flex-row flex-col shrink-0 items-center gap-2'>
                   <Button
                     type="button"
                     variant='outline'
